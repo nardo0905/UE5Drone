@@ -18,9 +18,15 @@ private:
 	
 	float TiltInput;
 
+	void OnCanShootAgain();
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	bool bCanShoot;
+
+	FTimerHandle CanShootTimerHandle;
 
 public:
 	// Sets default values for this pawn's properties
@@ -48,12 +54,14 @@ public:
 
 	void Rotate(const struct FInputActionValue& ActionValue);
 
+	void Shoot(const struct FInputActionValue& ActionValue);
+
 	void ToggleAdvancedFlyMode();
 
 	void ToggleFirstPerson();
 	
 	UPROPERTY(EditAnywhere)
-	class UFloatingPawnMovement* Movement; // helps smooth moving in air
+	class UFloatingPawnMovement* Movement; // floating helps smooth moving in air
 	
 	UPROPERTY(EditAnywhere)
 	float MoveScale;
@@ -94,5 +102,11 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	float TiltResetScale;
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<class ADroneShot> ShotClass;
+
+	UPROPERTY(EditAnywhere)
+	float TimeBetweenShots;
 	
 };

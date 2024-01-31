@@ -4,12 +4,14 @@
 #include "Drone.h"
 
 #include "DroneController.h"
+#include "UE5TopDownARPG/Drone/DroneShot/DroneShot.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystemInterface.h"
 #include "EnhancedInputSubsystems.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "UE5TopDownARPG/UE5TopDownARPG.h"
 
 // Sets default values
 ADrone::ADrone()
@@ -42,7 +44,14 @@ ADrone::ADrone()
 	TiltMoveScale = 0.3f;
 	TiltRotateScale = 0.2;
 	TiltResetScale = 0.5f;
+	bCanShoot = true;
+	TimeBetweenShots = 0.2f;
 
+}
+
+void ADrone::OnCanShootAgain()
+{
+	bCanShoot = true;
 }
 
 // Called when the game starts or when spawned
@@ -118,6 +127,7 @@ void ADrone::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 		EIC->BindAction(DC->RotateAction, ETriggerEvent::Triggered, this, &ADrone::Rotate);
 		EIC->BindAction(DC->AdvancedFlyOptionAction, ETriggerEvent::Started, this, &ADrone::ToggleAdvancedFlyMode);
 		EIC->BindAction(DC->ToggleFirstPersonAction, ETriggerEvent::Started, this, &ADrone::ToggleFirstPerson);
+		EIC->BindAction(DC->ShootAction, ETriggerEvent::Started, this, &ADrone::Shoot);
 	}
 
 	ULocalPlayer* LocalPlayer = DC->GetLocalPlayer();
@@ -164,8 +174,30 @@ void ADrone::Rotate(const FInputActionValue& ActionValue)
 	}
 }
 
+void ADrone::Shoot(const FInputActionValue& ActionValue)
+{
+
+	if (!bCanShoot)
+	{
+		return;
+	}
+
+	bCanShoot = false;
+
+	FTimerManager& TimerManager = GetWorld()->GetTimerManager();
+	TimerManager.SetTimer(CanShootTimerHandle, this, &ADrone::OnCanShootAgain, TimeBetweenShots);
+	
+	UE_LOG(LogUE5TopDownARPG, Log, TEXT("SHOOT"));
+	FTransform BodyTransform = Body->GetComponentTransform();
+	FRotator Rotator = BodyTransform.Rotator();
+	FVector ShotOffset(200.f, 0.f, 0.f);
+	FVector Translation = BodyTransform.GetTranslation() + Rotator.RotateVector(ShotOffset);
+	GetWorld()->SpawnActor<ADroneShot>(ShotClass, Translation, Rotator);
+}
+
 void ADrone::ToggleAdvancedFlyMode()
 {
+	UE_LOG(LogUE5TopDownARPG, Log, TEXT("Toggle advance flying mode"));
 	advanced = !advanced;
 }
 
@@ -173,6 +205,7 @@ void ADrone::ToggleFirstPerson()
 {
 	if (!isInFirstPerson)
 	{
+		UE_LOG(LogUE5TopDownARPG, Log, TEXT("First person mode ON"));
 		isInFirstPerson = true;
 		SpringArm->TargetArmLength = 0.f;
 		SpringArm->bEnableCameraLag = false;
@@ -180,6 +213,7 @@ void ADrone::ToggleFirstPerson()
 	}
 	else
 	{
+		UE_LOG(LogUE5TopDownARPG, Log, TEXT("First person mode OFF"));
 		isInFirstPerson = false;
 		SpringArm->TargetArmLength = defaultSpringArmLenght;
 		SpringArm->bEnableCameraLag = true;
