@@ -15,28 +15,33 @@ private:
 
 	// so i can calculate shaking
 	float ShakeTime;
-	
-	float TiltInput;
 
 	void OnCanShootAgain();
 
 protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
-
+	
 	bool bCanShoot;
 
 	FTimerHandle CanShootTimerHandle;
 
+	void Death();
+
 public:
 	// Sets default values for this pawn's properties
 	ADrone();
+
+	virtual void BeginPlay() override;
+
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+	UFUNCTION()
+	void TakeAnyDamage(AActor* DamagedActor, float Damage, const class UDamageType* DamageType, class AController* InstigateBy, AActor* DamageCauser);
 
 	UPROPERTY(EditAnywhere)
 	class UStaticMeshComponent* CollisionMesh;
@@ -50,63 +55,70 @@ public:
 	UPROPERTY(EditAnywhere)
 	class UCameraComponent* Camera;
 
-	void Move(const struct FInputActionValue& ActionValue);
-
-	void Rotate(const struct FInputActionValue& ActionValue);
-
-	void Shoot(const struct FInputActionValue& ActionValue);
-
-	void ToggleAdvancedFlyMode();
-
-	void ToggleFirstPerson();
-	
 	UPROPERTY(EditAnywhere)
 	class UFloatingPawnMovement* Movement; // floating helps smooth moving in air
+
+	void Shoot();
 	
-	UPROPERTY(EditAnywhere)
-	float MoveScale;
-
-	UPROPERTY(EditAnywhere)
-	float RotateScale;
-
-	// TODO: add hud element that displays this
+	// is advanced flying mode on or off
 	UPROPERTY()
-	bool advanced;
+	bool bAdvanced;
 
+	// is the drone in first person mode
 	UPROPERTY();
-	bool isInFirstPerson;
+	bool bIsInFirstPerson;
 
-	UPROPERTY(EditAnywhere);
-	float defaultSpringArmLenght;
+	// current health
+	UPROPERTY()
+	float Health;
 
-	// Shake amplitude (strength). 0 is off
-	UPROPERTY(EditAnywhere)
-	float ShakeAmplitude;
-
-	// How frequent should the shake be
-	UPROPERTY(EditAnywhere)
-	float ShakeFrequency;
-
-	// offset to apply to Z coordinate after shaking
-	UPROPERTY(EditAnywhere)
-	float ShakeOffset;
-
-	UPROPERTY(EditAnywhere)
-	float TiltMax;
-
-	UPROPERTY(EditAnywhere)
-	float TiltMoveScale;
-
-	UPROPERTY(EditAnywhere)
-	float TiltRotateScale;
-
-	UPROPERTY(EditAnywhere)
-	float TiltResetScale;
+	// accumulate how much tilt should be applied to the body every tick
+	UPROPERTY()
+	float TiltInput;
 
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<class ADroneShot> ShotClass;
 
 	UPROPERTY(EditAnywhere)
+	TSubclassOf<AActor> DroneDeathClass;
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<class UDroneHUD> DroneHUDClass;
+
+	UPROPERTY()
+	class UDroneHUD* DroneHUD;
+
+	UPROPERTY(EditAnywhere)
 	float TimeBetweenShots;
+
+	UPROPERTY(EditAnywhere)
+	float MaxHealth;
+
+	UPROPERTY(EditAnywhere);
+	float DefaultSpringArmLenght;
+
+	// Shake amplitude (strength). 0 is off
+	UPROPERTY(EditAnywhere)
+	float ShakeAmplitude;
+	
+	// How frequent should the shake be
+	UPROPERTY(EditAnywhere)
+	float ShakeFrequency;
+	
+	// offset to apply to Z coordinate after shaking
+	UPROPERTY(EditAnywhere)
+	float ShakeOffset;
+	
+	UPROPERTY(EditAnywhere)
+	float TiltMax;
+	
+	UPROPERTY(EditAnywhere)
+	float TiltMoveScale;
+	
+	UPROPERTY(EditAnywhere)
+	float TiltRotateScale;
+	
+	UPROPERTY(EditAnywhere)
+	float TiltResetScale;
 	
 };

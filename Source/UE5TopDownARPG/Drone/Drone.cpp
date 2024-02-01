@@ -7,8 +7,8 @@
 #include "UE5TopDownARPG/Drone/DroneShot/DroneShot.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystemInterface.h"
-#include "EnhancedInputSubsystems.h"
 #include "Camera/CameraComponent.h"
+#include "DroneHUD/DroneHUD.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "UE5TopDownARPG/UE5TopDownARPG.h"
@@ -33,11 +33,11 @@ ADrone::ADrone()
 
 	Movement = CreateDefaultSubobject<UFloatingPawnMovement>(TEXT("Movement"));
 
-	MoveScale = 1.f;
-	RotateScale = 50.f;
-	advanced = false;
-	isInFirstPerson = false;
-	defaultSpringArmLenght = 200.f;
+	OnTakeAnyDamage.AddDynamic(this, &ADrone::TakeAnyDamage);
+
+	bAdvanced = false;
+	bIsInFirstPerson = false;
+	DefaultSpringArmLenght = 200.f;
 	ShakeFrequency = 2.f;
 	ShakeAmplitude = 80.f;
 	TiltMax = 15.f;
@@ -46,7 +46,49 @@ ADrone::ADrone()
 	TiltResetScale = 0.5f;
 	bCanShoot = true;
 	TimeBetweenShots = 0.2f;
+	MaxHealth = 100.f;
+	Health = MaxHealth;
 
+}
+
+void ADrone::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (IsValid(DroneHUDClass))
+	{
+		ADroneController* DroneController = GetController<ADroneController>();
+		if (IsValid(DroneController))
+		{
+			DroneHUD = CreateWidget<UDroneHUD>(DroneController, DroneHUDClass);
+			if (IsValid(DroneHUD))
+			{
+				DroneHUD->AddToPlayerScreen();
+				DroneHUD->SetHealth(Health, MaxHealth);
+			}
+		}
+	}
+}
+
+void ADrone::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (IsValid(DroneHUD))
+	{
+		DroneHUD->RemoveFromParent();
+		DroneHUD = nullptr;
+	}
+
+	Super::EndPlay(EndPlayReason);
+}
+
+void ADrone::Death()
+{
+	FVector Location = GetActorLocation();
+	FRotator Rotation = GetActorRotation();
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	GetWorld()->SpawnActor(DroneDeathClass, &Location, &Rotation, SpawnParameters);
+	Destroy();
 }
 
 void ADrone::OnCanShootAgain()
@@ -54,17 +96,17 @@ void ADrone::OnCanShootAgain()
 	bCanShoot = true;
 }
 
-// Called when the game starts or when spawned
-void ADrone::BeginPlay()
-{
-	Super::BeginPlay();
-	
-}
-
 // Called every frame
 void ADrone::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (IsValid(DroneHUD))
+	{
+		float Speed = GetVelocity().Length();
+		// UE_LOG(LogUE5TopDownARPG, Log, TEXT("Speed %f"), speed);
+		DroneHUD->SetSpeed(Speed);
+	}
 
 	// shaking when body is stationary so it looks like its flying in one place
 	if (ShakeAmplitude)
@@ -123,60 +165,31 @@ void ADrone::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 	if (IsValid(EIC) && IsValid(DC))
 	{
-		EIC->BindAction(DC->MoveAction, ETriggerEvent::Triggered, this, &ADrone::Move);
-		EIC->BindAction(DC->RotateAction, ETriggerEvent::Triggered, this, &ADrone::Rotate);
-		EIC->BindAction(DC->AdvancedFlyOptionAction, ETriggerEvent::Started, this, &ADrone::ToggleAdvancedFlyMode);
-		EIC->BindAction(DC->ToggleFirstPersonAction, ETriggerEvent::Started, this, &ADrone::ToggleFirstPerson);
 		EIC->BindAction(DC->ShootAction, ETriggerEvent::Started, this, &ADrone::Shoot);
 	}
 
-	ULocalPlayer* LocalPlayer = DC->GetLocalPlayer();
+}
 
-	if (IsValid(LocalPlayer))
+void ADrone::TakeAnyDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType, AController* InstigateBy,
+	AActor* DamageCauser)
+{
+	Health -= Damage;
+	UE_LOG(LogUE5TopDownARPG, Log, TEXT("Health: %f"), Health);
+
+	if (IsValid(DroneHUD))
 	{
-		UEnhancedInputLocalPlayerSubsystem* Subsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
-
-		if (IsValid(Subsystem))
-		{
-			Subsystem->ClearAllMappings();
-			Subsystem->AddMappingContext(DC->DroneMappingContext, 0);
-		}
-		
+		DroneHUD->SetHealth(Health, MaxHealth);
 	}
 
-}
-
-void ADrone::Move(const FInputActionValue& ActionValue)
-{
-	FVector Input = ActionValue.Get<FInputActionValue::Axis3D>();
-	AddMovementInput(GetActorRotation().RotateVector(Input), MoveScale);
-	TiltInput += Input.Y * TiltMoveScale * MoveScale;
-}
-
-void ADrone::Rotate(const FInputActionValue& ActionValue)
-{
-	FRotator Input(ActionValue[0], ActionValue[1], ActionValue[2]);
-	// scale by time that has passed since last tick
-	// done so mouse sensitivity can feel the same at different frame rates
-	Input *= GetWorld()->GetDeltaSeconds() * RotateScale;
-	TiltInput += Input.Yaw * TiltRotateScale;
-
-	if (advanced)
+	if (Health <= 0.f)
 	{
-		AddActorLocalRotation(Input);
-	} else
-	{
-		Input += GetActorRotation();
-		// clamping the angle so we cant loop around while looking up or down
-		Input.Pitch = FMath::ClampAngle(Input.Pitch, -89.9f, 89.9f);
-		Input.Roll = 0;
-		SetActorRotation(Input);
+		Death();
+		// Destroy();
 	}
 }
 
-void ADrone::Shoot(const FInputActionValue& ActionValue)
+void ADrone::Shoot()
 {
-
 	if (!bCanShoot)
 	{
 		return;
@@ -194,34 +207,3 @@ void ADrone::Shoot(const FInputActionValue& ActionValue)
 	FVector Translation = BodyTransform.GetTranslation() + Rotator.RotateVector(ShotOffset);
 	GetWorld()->SpawnActor<ADroneShot>(ShotClass, Translation, Rotator);
 }
-
-void ADrone::ToggleAdvancedFlyMode()
-{
-	UE_LOG(LogUE5TopDownARPG, Log, TEXT("Toggle advance flying mode"));
-	advanced = !advanced;
-}
-
-void ADrone::ToggleFirstPerson()
-{
-	if (!isInFirstPerson)
-	{
-		UE_LOG(LogUE5TopDownARPG, Log, TEXT("First person mode ON"));
-		isInFirstPerson = true;
-		SpringArm->TargetArmLength = 0.f;
-		SpringArm->bEnableCameraLag = false;
-		SpringArm->bEnableCameraRotationLag = false;
-	}
-	else
-	{
-		UE_LOG(LogUE5TopDownARPG, Log, TEXT("First person mode OFF"));
-		isInFirstPerson = false;
-		SpringArm->TargetArmLength = defaultSpringArmLenght;
-		SpringArm->bEnableCameraLag = true;
-		SpringArm->bEnableCameraRotationLag = true;
-		SpringArm->CameraLagSpeed = 30.f;
-		SpringArm->CameraRotationLagSpeed = 30.f;
-		SpringArm->CameraLagMaxDistance = 50.f;
-	}
-}
-
-

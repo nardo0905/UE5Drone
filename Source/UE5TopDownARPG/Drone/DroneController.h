@@ -16,6 +16,12 @@ class UE5TOPDOWNARPG_API ADroneController : public APlayerController
 
 public:
 
+	ADroneController();
+
+	virtual void BeginPlay() override;
+
+	virtual void SetupInputComponent() override;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
 	class UInputMappingContext* DroneMappingContext;
 
@@ -33,4 +39,18 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
 	class UInputAction* ShootAction;
+
+	void Move(const struct FInputActionValue& ActionValue);
+
+	auto Rotate(const struct FInputActionValue& ActionValue) -> void;
+
+	void ToggleAdvancedFlyMode();
+
+	void ToggleFirstPerson();
+
+	UPROPERTY(EditAnywhere)
+	float MoveScale;
+
+	UPROPERTY(EditAnywhere)
+	float RotateScale;
 };
