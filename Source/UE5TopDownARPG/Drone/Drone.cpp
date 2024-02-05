@@ -33,21 +33,27 @@ ADrone::ADrone()
 
 	Movement = CreateDefaultSubobject<UFloatingPawnMovement>(TEXT("Movement"));
 
-	OnTakeAnyDamage.AddDynamic(this, &ADrone::TakeAnyDamage);
-
-	bAdvanced = false;
+	// bool props
+	bAdvanced = true;
 	bIsInFirstPerson = false;
+	bCanShoot = true;
+	// spring arm
 	DefaultSpringArmLenght = 200.f;
+	// shaking and tilting
 	ShakeFrequency = 2.f;
 	ShakeAmplitude = 80.f;
 	TiltMax = 15.f;
 	TiltMoveScale = 0.3f;
 	TiltRotateScale = 0.2;
 	TiltResetScale = 0.5f;
-	bCanShoot = true;
+	// shots
 	TimeBetweenShots = 0.2f;
+	// health stuff
 	MaxHealth = 100.f;
 	Health = MaxHealth;
+	//after death spawn actor
+	AfterDeathSpawnedActor = nullptr;
+	HowLongShouldDeathActorStay = 5.f;
 
 }
 
@@ -55,40 +61,61 @@ void ADrone::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (IsValid(DroneHUDClass))
-	{
-		ADroneController* DroneController = GetController<ADroneController>();
-		if (IsValid(DroneController))
-		{
-			DroneHUD = CreateWidget<UDroneHUD>(DroneController, DroneHUDClass);
-			if (IsValid(DroneHUD))
-			{
-				DroneHUD->AddToPlayerScreen();
-				DroneHUD->SetHealth(Health, MaxHealth);
-			}
-		}
-	}
-}
+	// didnt work when i had it in the constructor for some reason?
+	OnTakeAnyDamage.AddDynamic(this, &ADrone::TakeAnyDamage);
 
-void ADrone::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-	if (IsValid(DroneHUD))
-	{
-		DroneHUD->RemoveFromParent();
-		DroneHUD = nullptr;
-	}
-
-	Super::EndPlay(EndPlayReason);
+	// if (IsValid(DroneHUDClass))
+	// {
+	// 	ADroneController* DroneController = GetController<ADroneController>();
+	// 	if (IsValid(DroneController))
+	// 	{
+	// 		UE_LOG(LogUE5TopDownARPG, Log, TEXT("VALID PLAYER CONTROLLER"));
+	// 		DroneHUD = CreateWidget<UDroneHUD>(DroneController, DroneHUDClass);
+	// 		if (IsValid(DroneHUD))
+	// 		{
+	// 			DroneHUD->AddToPlayerScreen();
+	// 			DroneHUD->SetHealth(Health, MaxHealth);
+	// 			DroneHUD->SetFirstPersonMode(bIsInFirstPerson);
+	// 			DroneHUD->SetAdvancedMode(bAdvanced);
+	// 		}
+	// 	}
+	// }
 }
 
 void ADrone::Death()
 {
+
+	if (DroneHUD)
+	{
+		DroneHUD->RemoveFromParent();
+		DroneHUD = nullptr;
+	}
+	
 	FVector Location = GetActorLocation();
 	FRotator Rotation = GetActorRotation();
 	FActorSpawnParameters SpawnParameters;
 	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	GetWorld()->SpawnActor(DroneDeathClass, &Location, &Rotation, SpawnParameters);
+
+	// handle after death spawned actor
+	AfterDeathSpawnedActor = GetWorld()->SpawnActor(DroneDeathClass, &Location, &Rotation, SpawnParameters);
+	// AfterDeathSpawnedActor->InitialLifeSpan = 2.f;
+	FTimerManager& TimerManager = GetWorld()->GetTimerManager();
+	// FTimerDelegate AfterDeathFunction = FTimerDelegate::CreateUObject(this, &ADrone::DestroyAfterDeathSpawnObject);
+	TimerManager.SetTimer(DestroyAfterDeathSpawnObjectHandle, this, &ADrone::DestroyAfterDeathSpawnObject, HowLongShouldDeathActorStay);
+	// TimerManager.SetTimer(DestroyAfterDeathSpawnObjectHandle, AfterDeathFunction, HowLongShouldDeathActorStay, false);
+
+	UE_LOG(LogUE5TopDownARPG, Log, TEXT("DRONE DEATH"));
 	Destroy();
+}
+
+void ADrone::DestroyAfterDeathSpawnObject()
+{
+	UE_LOG(LogUE5TopDownARPG, Log, TEXT("PARTICLE SHOULD BE DESTROYED"));
+	if (IsValid(AfterDeathSpawnedActor))
+	{
+		AfterDeathSpawnedActor->Destroy();
+		AfterDeathSpawnedActor = nullptr;
+	}
 }
 
 void ADrone::OnCanShootAgain()
@@ -165,7 +192,21 @@ void ADrone::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 	if (IsValid(EIC) && IsValid(DC))
 	{
+		UE_LOG(LogUE5TopDownARPG, Log, TEXT("VALID PLAYER CONTROLLER"));
 		EIC->BindAction(DC->ShootAction, ETriggerEvent::Started, this, &ADrone::Shoot);
+		// initializing hud here because controller is not yet ready in begin play i think
+		// didnt print out log when i tried it there
+		if (IsValid(DroneHUDClass))
+		{
+			DroneHUD = CreateWidget<UDroneHUD>(DC, DroneHUDClass);
+			if (IsValid(DroneHUD))
+			{
+				DroneHUD->AddToPlayerScreen();
+				DroneHUD->SetHealth(Health, MaxHealth);
+				DroneHUD->SetFirstPersonMode(bIsInFirstPerson);
+				DroneHUD->SetAdvancedMode(bAdvanced);
+			}
+		}
 	}
 
 }
@@ -184,7 +225,6 @@ void ADrone::TakeAnyDamage(AActor* DamagedActor, float Damage, const UDamageType
 	if (Health <= 0.f)
 	{
 		Death();
-		// Destroy();
 	}
 }
 

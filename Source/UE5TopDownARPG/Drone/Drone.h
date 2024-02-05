@@ -16,6 +16,7 @@ private:
 	// so i can calculate shaking
 	float ShakeTime;
 
+	UFUNCTION()
 	void OnCanShootAgain();
 
 protected:
@@ -24,15 +25,24 @@ protected:
 
 	FTimerHandle CanShootTimerHandle;
 
+	FTimerHandle DestroyAfterDeathSpawnObjectHandle;
+
 	void Death();
+
+	UPROPERTY()
+	AActor* AfterDeathSpawnedActor;
+
+	UPROPERTY(EditAnywhere)
+	float HowLongShouldDeathActorStay;
+
+	UFUNCTION()
+	void DestroyAfterDeathSpawnObject();
 
 public:
 	// Sets default values for this pawn's properties
 	ADrone();
 
 	virtual void BeginPlay() override;
-
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -59,6 +69,10 @@ public:
 	class UFloatingPawnMovement* Movement; // floating helps smooth moving in air
 
 	void Shoot();
+
+	// current health
+	UPROPERTY()
+	float Health;
 	
 	// is advanced flying mode on or off
 	UPROPERTY()
@@ -67,10 +81,6 @@ public:
 	// is the drone in first person mode
 	UPROPERTY();
 	bool bIsInFirstPerson;
-
-	// current health
-	UPROPERTY()
-	float Health;
 
 	// accumulate how much tilt should be applied to the body every tick
 	UPROPERTY()
@@ -83,8 +93,8 @@ public:
 	TSubclassOf<AActor> DroneDeathClass;
 
 	UPROPERTY(EditAnywhere)
-	TSubclassOf<class UDroneHUD> DroneHUDClass;
-
+	TSubclassOf<class UUserWidget> DroneHUDClass;
+	
 	UPROPERTY()
 	class UDroneHUD* DroneHUD;
 

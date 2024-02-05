@@ -7,6 +7,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "DroneHUD/DroneHUD.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "UE5TopDownARPG/UE5TopDownARPG.h"
 
@@ -84,6 +85,10 @@ void ADroneController::ToggleAdvancedFlyMode()
 	{
 		UE_LOG(LogUE5TopDownARPG, Log, TEXT("Toggle advance flying mode"));
 		pawn->bAdvanced = !pawn->bAdvanced;
+		if (IsValid(pawn->DroneHUD))
+		{
+			pawn->DroneHUD->SetAdvancedMode(pawn->bAdvanced);
+		}
 	}
 }
 
@@ -111,5 +116,10 @@ void ADroneController::ToggleFirstPerson()
 			pawn->SpringArm->CameraRotationLagSpeed = 30.f;
 			pawn->SpringArm->CameraLagMaxDistance = 50.f;
 		}
+	}
+
+	if (IsValid(pawn->DroneHUD))
+	{
+		pawn->DroneHUD->SetFirstPersonMode(pawn->bIsInFirstPerson);
 	}
 }
