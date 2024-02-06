@@ -64,7 +64,7 @@ void ADroneController::Rotate(const FInputActionValue& ActionValue)
 		Input *= GetWorld()->GetDeltaSeconds() * RotateScale;
 		pawn->TiltInput += Input.Yaw * pawn->TiltRotateScale;
 
-		if (Cast<ADrone>(GetPawn())->bAdvanced)
+		if (pawn->bAdvanced)
 		{
 			pawn->AddActorLocalRotation(Input);
 		} else
